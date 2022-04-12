@@ -1,0 +1,194 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width,initial-scale=1.0">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">  
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    </head>
+    <body>
+        <div class="container-fluid mt-3">
+            <!-- https://feeds.simplecast.com/54nAGcIl -->
+            <h3 class="mx-3">RSS Feed Reader</h3>
+            <div class="row mx-3">
+                <div class="col-10 p-0">
+                    <input class="form-control" type="text" id="rss-id" style="border: 1px solid grey;"/>
+                </div>
+                <div class="col-2 p-0">
+                    <button class="btn btn-primary w-100" onclick="parse()">Generate RSS Feed</button>
+                </div>
+            </div>
+            <div class="row mx-3" id="rss-feed-error"></div>
+            <div class="row mx-3">
+                <div class="col-3 p-0 mt-2">
+                    <button onclick="parse(this.value)" value="https://feeds.simplecast.com/54nAGcIl" class="btn btn-success w-100">NewYorkTimes</button>
+                </div>
+                <div class="col-2 mt-2">
+                    <button onclick="parse(this.value)" value="https://rss.art19.com/apology-line" class="btn btn-warning w-100">Apology Line</button>
+                </div>
+                <div class="col-2 mt-2">
+                    <button onclick="parse(this.value)" value="https://feeds.megaphone.fm/ADL9840290619" class="btn btn-danger w-100">Crime Junkie</button>
+                </div>
+                <div class="col-2 mt-2">
+                    <button onclick="parse(this.value)" value="https://feeds.megaphone.fm/WWO3519750118" class="btn btn-dark w-100">Dan Bongino Show</button>
+                </div>
+                <div class="col-3 p-0 mt-2">
+                    <button onclick="parse(this.value)" value="https://lincolnproject.libsyn.com/rss" class="btn btn-info w-100">The Lincoln Project</button>
+                </div>
+            </div>
+            <div class="row m-3" id="rss-feed-result"></div>
+        </div>
+    </body>
+    <script id="rss-feed-error-template" type="text/x-handlebars-template">
+        <div class="col p-0">
+            <span class="text-danger">{{error}}</span>
+        </div>
+    </script>
+    <script id="rss-feed-template" type="text/x-handlebars-template">
+        <div class="tab-content p-0" id="pills-tabContent">
+            {{#each feed}}
+            <div class="tab-pane" id="pills-{{@index}}" role="tabpanel" aria-labelledby="pills-{{@index}}-tab">
+                {{#each page}}
+                    <div class="row">
+                        <div class="col">
+                            <div class="card p-0 my-1" style="border: 1px solid black;">  
+                                <div class="card-header">
+                                    <div class="row">
+                                        <div class="col">
+                                            <b>{{title}}</b>
+                                        </div>
+                                        <div class="col" style="text-align: right;">
+                                            <a href="{{link}}" target="_blank">{{{link}}}</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row" style="max-height: 15vh;overflow-y: scroll;">
+                                        <div class="col" style="justify-content: space-evenly;">
+                                            {{{description}}}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-footer">
+                                    <div class="row">
+                                        <div class="col">
+                                            <span>{{author}}</span>
+                                        </div>
+                                        <div class="col" style="text-align: right;">
+                                            <small>{{pubDate}}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {{/each}}
+            </div>
+            {{/each}}
+        </div>
+        <ul class="nav nav-pills mt-3" id="pills-tab" role="tablist" style="flex-wrap:nowrap !important;overflow-x:scroll;white-space:nowrap;">
+            {{#each feed}}
+            <li class="nav-item" role="presentation" style="display: inline;">
+                <a onclick="setTabActive(this.id)" class="nav-link" id="pills-{{@index}}-tab" data-toggle="pill" href="#pills-{{@index}}" role="tab" aria-controls="pills-{{@index}}" aria-selected="false">
+                    {{@index}}
+                </a>
+            </li>
+            {{/each}}
+        </ul>
+    </script>
+    <script>
+
+        function getPublishDuration(date){
+            return moment(date).fromNow()
+        }
+
+        function renderHandlebar(context, template, result){
+            var templateScript = $(`#${template}`).html();
+            var template = Handlebars.compile(templateScript);
+            var compiledHtml = template(context);
+            $(`#${result}`).html(compiledHtml);
+        }
+
+        function setTabActive(tab_id){
+            let tab = document.getElementById(tab_id)
+            if(tab){
+                tab.classList.add('active')
+                tab.setAttribute('aria-selected', 'true')
+                let tabContent = tab.getAttribute('aria-controls')
+                document.getElementById(`${tabContent}`).classList.add("active")
+                document.getElementById(`${tabContent}`).classList.add("show")
+                let otherTabs = tab.parentElement.parentElement.childNodes
+                if(otherTabs){
+                    otherTabs.forEach(el => {
+                        let tabOld = el.firstElementChild
+                        if(el.tagName === 'LI' && tabOld.getAttribute('id') !== tab_id){
+                            tabOld.classList.remove("active")
+                            tabOld.setAttribute('aria-selected', 'false')
+                            let tabContentOld = tabOld.getAttribute('aria-controls')
+                            document.getElementById(`${tabContentOld}`).classList.remove('active')
+                            document.getElementById(`${tabContentOld}`).classList.remove('show')
+                        }
+                    });
+                }
+            }
+        }
+
+        function parse(link=null){
+            var errorMessage = { 'error': "" }
+            renderHandlebar(errorMessage, "rss-feed-error-template", "rss-feed-error")
+            if(!link){
+                link = document.getElementById("rss-id").value
+            }
+            if(link){
+                const fetchPromise = fetch(link);
+                const data = fetchPromise.then(response => response.text())
+                .then(str => new window.DOMParser().parseFromString(str, "text/xml"))
+                .then(data => { 
+                    console.log(data)
+                    const items = data.querySelectorAll("item")
+                    if(items.length > 0){
+                        var rssFeed = {'feed': [], 'total': items.length, 'perPage': 5}
+                        var totalPages = Math.ceil(rssFeed.total/rssFeed.perPage)
+                        let i = 0
+                        while(totalPages > 0){
+                            var pageData = []
+                            for(let j=i; j<i+rssFeed.perPage;j++){
+                                if(items[j] !== undefined){
+                                    let linkValue = items[j].querySelector("link")?items[j].querySelector("link").innerHTML:""
+                                    let authorValue = items[j].querySelector("author")?items[j].querySelector("author").innerHTML:""
+                                    pageData.push({
+                                        'title': items[j].querySelector("title").innerHTML,
+                                        'description': items[j].querySelector("description").innerHTML,
+                                        'link': linkValue,
+                                        'pubDate': getPublishDuration(items[j].querySelector("pubDate").innerHTML),
+                                        'author': authorValue,
+                                    });
+                                }
+                            }
+                            rssFeed.feed.push({ 'page': pageData})
+                            i += rssFeed.perPage
+                            totalPages -= 1
+                        }
+                        console.log(rssFeed)
+                        renderHandlebar(rssFeed, "rss-feed-template", "rss-feed-result");
+                        setTabActive("pills-0-tab")
+                    } else {
+                        errorMessage.error = "No data fetched from this feed"
+                        renderHandlebar(errorMessage, "rss-feed-error-template", "rss-feed-error")
+                    }
+                })
+                .catch((error) => {
+                    errorMessage.error = error.message
+                    renderHandlebar(errorMessage, "rss-feed-error-template", "rss-feed-error")
+                })
+            } else {
+                errorMessage.error = "Please provide RSS feed link"
+                renderHandlebar(errorMessage, "rss-feed-error-template", "rss-feed-error")
+            }
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.20.1/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/handlebars@latest/dist/handlebars.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+</html>
